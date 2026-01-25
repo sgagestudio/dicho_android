@@ -19,5 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Dicho"
+rootProject.name = "dicho"
 include(":app")
+ 
