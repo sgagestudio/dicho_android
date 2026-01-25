@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.marcoassociation.tasktrack"
+    namespace = "com.marcoassociation.dicho"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.marcoassociation.tasktrack"
+        applicationId = "com.marcoassociation.dicho"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
