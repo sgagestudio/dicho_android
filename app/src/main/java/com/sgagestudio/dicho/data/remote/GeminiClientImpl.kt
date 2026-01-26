@@ -1,6 +1,7 @@
 package com.sgagestudio.dicho.data.remote
 
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.content
 import com.sgagestudio.dicho.BuildConfig
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -14,7 +15,11 @@ class GeminiClientImpl @Inject constructor() : GeminiClient {
     )
 
     override suspend fun extractTransaction(rawText: String): AiTransactionPayload {
-        val response = model.generateContent(rawText)
+        val response = model.generateContent(
+            content {
+                text(rawText)
+            },
+        )
         val payload = response.text ?: error("Empty response")
         return json.decodeFromString(AiTransactionPayload.serializer(), payload)
     }
