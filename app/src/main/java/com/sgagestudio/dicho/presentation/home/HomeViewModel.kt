@@ -27,31 +27,56 @@ class HomeViewModel @Inject constructor(
     private val aiProcessorRepository: AIProcessorRepository,
     private val csvExporter: CsvExporter,
 ) : ViewModel() {
+
     private val _snackbar = MutableStateFlow<String?>(null)
     val snackbar: StateFlow<String?> = _snackbar
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing
+
+    // Estado para controlar la visibilidad del overlay de voz
+    private val _showVoiceOverlay = MutableStateFlow(false)
+    val showVoiceOverlay: StateFlow<Boolean> = _showVoiceOverlay
 
     val uiState: StateFlow<HomeUiState> = combine(
         transactionRepository.observeTransactions(),
         aiProcessorRepository.localModelSupported,
         aiProcessorRepository.localModelAvailable,
-    ) { transactions, supported, available ->
-        val monthlyTotal = calculateMonthlyTotal(transactions)
+        _showVoiceOverlay,
+        _isProcessing
+    ) { transactions, supported, available, showOverlay, processing ->
         HomeUiState(
             transactions = transactions,
-            monthlyTotal = monthlyTotal,
+            monthlyTotal = calculateMonthlyTotal(transactions),
             localAiSupported = supported,
             localModelAvailable = available,
+            showVoiceOverlay = showOverlay,
+            isProcessing = processing
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
+    // Activa la interfaz de escucha
+    fun startListening() {
+        _showVoiceOverlay.value = true
+    }
+
+    // Cierra la interfaz de escucha
+    fun stopListening() {
+        _showVoiceOverlay.value = false
+    }
+
     fun onVoiceInput(rawText: String) {
-        if (rawText.isBlank()) return // Evita procesar silencios
+        if (rawText.isBlank()) {
+            stopListening()
+            return
+        }
 
         viewModelScope.launch {
+            // Cerramos el overlay inmediatamente para dar fluidez
+            stopListening()
+
             _isProcessing.value = true
-            _snackbar.value = "Analizando tu gasto..." // Feedback inmediato
+            _snackbar.value = "Analizando tu gasto..."
             try {
                 aiProcessorRepository.process(rawText)
                     .onFailure { error ->
@@ -66,12 +91,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun onManualEntry(
-        concept: String,
-        amount: Double,
-        category: String,
-        expenseDate: Long,
-    ) {
+    fun onManualEntry(concept: String, amount: Double, category: String, expenseDate: Long) {
         viewModelScope.launch {
             val recordDate = Instant.now().toEpochMilli()
             val transaction = Transaction(
@@ -90,19 +110,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun exportCsv(outputDir: File) {
-        viewModelScope.launch {
-            val transactions = uiState.value.transactions
-            runCatching { csvExporter.export(transactions, outputDir) }
-                .onSuccess { file ->
-                    _snackbar.value = "CSV exportado en ${file.absolutePath}"
-                }
-                .onFailure { error ->
-                    _snackbar.value = "Error al exportar: ${error.message}"
-                }
-        }
-    }
-
     fun updateTransaction(transaction: Transaction) {
         viewModelScope.launch {
             transactionRepository.updateTransaction(transaction)
@@ -117,6 +124,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun exportCsv(outputDir: File) {
+        viewModelScope.launch {
+            val transactions = uiState.value.transactions
+            runCatching { csvExporter.export(transactions, outputDir) }
+                .onSuccess { file -> _snackbar.value = "CSV exportado en ${file.absolutePath}" }
+                .onFailure { error -> _snackbar.value = "Error al exportar: ${error.message}" }
+        }
+    }
+
     fun refreshCapabilities() {
         viewModelScope.launch { aiProcessorRepository.refreshCapabilities() }
     }
@@ -128,17 +144,17 @@ class HomeViewModel @Inject constructor(
     private fun calculateMonthlyTotal(transactions: List<Transaction>): Double {
         val now = ZonedDateTime.now(ZoneId.systemDefault())
         return transactions.filter { transaction ->
-            val date = Instant.ofEpochMilli(transaction.expenseDate)
-                .atZone(ZoneId.systemDefault())
+            val date = Instant.ofEpochMilli(transaction.expenseDate).atZone(ZoneId.systemDefault())
             date.month == now.month && date.year == now.year
         }.sumOf { it.amount }
     }
 }
-
 
 data class HomeUiState(
     val transactions: List<Transaction> = emptyList(),
     val monthlyTotal: Double = 0.0,
     val localAiSupported: Boolean = false,
     val localModelAvailable: Boolean = false,
+    val showVoiceOverlay: Boolean = false,
+    val isProcessing: Boolean = false
 )
