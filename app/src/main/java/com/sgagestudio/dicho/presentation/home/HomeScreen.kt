@@ -79,7 +79,6 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbar by viewModel.snackbar.collectAsState()
     var isListening by remember { mutableStateOf(false) }
-    val isProcessing by viewModel.isProcessing.collectAsState()
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -151,7 +150,7 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
-        VoiceOverlay(isListening = isListening, isProcessing = isProcessing)
+        VoiceOverlay(isListening = isListening)
     }
 
     editTransaction?.let { transaction ->
@@ -281,9 +280,9 @@ private fun TransactionRow(
 }
 
 @Composable
-private fun VoiceOverlay(isListening: Boolean, isProcessing: Boolean) {
-    if (!isListening && !isProcessing) return
-    val statusText = if (isProcessing) "Procesando con Gemini..." else "Escuchando..."
+private fun VoiceOverlay(isListening: Boolean) {
+    if (!isListening) return
+    val statusText = "Escuchando..."
     val primary = MaterialTheme.colorScheme.primary
     val transition = rememberInfiniteTransition(label = "voiceWaves")
     val waves = listOf(
