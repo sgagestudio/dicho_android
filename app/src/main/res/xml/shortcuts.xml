@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:shortcutId="record_expense_voice"
+        android:shortcutLongLabel="@string/assistant_shortcut_long"
+        android:shortcutShortLabel="@string/assistant_shortcut_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.sgagestudio.dicho.MainActivity"
+            android:targetPackage="com.sgagestudio.dicho" />
+        <capability android:name="actions.intent.CREATE_MONEY_TRANSFER">
+            <intent>
+                <action android:name="android.intent.action.VIEW" />
+                <parameter
+                    android:name="moneyTransfer.note"
+                    android:key="rawText" />
+            </intent>
+            <shortcut android:shortcutId="record_expense_voice" />
+        </capability>
+    </shortcut>
+</shortcuts>
