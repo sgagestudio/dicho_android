@@ -7,5 +7,7 @@ interface TransactionRepository {
     fun observeTransactions(): Flow<List<Transaction>>
     suspend fun upsertTransaction(transaction: Transaction)
     suspend fun insertTransaction(transaction: Transaction): Long
+    suspend fun updateTransaction(transaction: Transaction)
+    suspend fun deleteTransaction(id: Long)
     suspend fun getPendingTransactions(): List<Transaction>
 }

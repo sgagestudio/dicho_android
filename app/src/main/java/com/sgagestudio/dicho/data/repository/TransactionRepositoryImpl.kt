@@ -23,6 +23,14 @@ class TransactionRepositoryImpl @Inject constructor(
         return transactionDao.insertTransaction(transaction.toEntity())
     }
 
+    override suspend fun updateTransaction(transaction: Transaction) {
+        transactionDao.updateTransaction(transaction.toEntity())
+    }
+
+    override suspend fun deleteTransaction(id: Long) {
+        transactionDao.deleteTransaction(id)
+    }
+
     override suspend fun getPendingTransactions(): List<Transaction> {
         return transactionDao.getTransactionsByStatus(TransactionStatus.PENDING_PROCESSING.name)
             .map { it.toDomain() }

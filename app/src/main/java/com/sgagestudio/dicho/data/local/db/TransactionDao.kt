@@ -18,6 +18,9 @@ interface TransactionDao {
     @Update
     suspend fun updateTransaction(entity: TransactionEntity)
 
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteTransaction(id: Long)
+
     @Query("SELECT * FROM transactions WHERE status = :status")
     suspend fun getTransactionsByStatus(status: String): List<TransactionEntity>
 }
