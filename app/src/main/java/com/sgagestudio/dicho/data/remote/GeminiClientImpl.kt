@@ -1,43 +1,66 @@
 package com.sgagestudio.dicho.data.remote
 
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.content // Importación clave
+import com.google.ai.client.generativeai.type.content
 import com.sgagestudio.dicho.BuildConfig
 import kotlinx.serialization.json.Json
+import java.time.LocalDate
 import javax.inject.Inject
 
 class GeminiClientImpl @Inject constructor() : GeminiClient {
     private val json = Json { ignoreUnknownKeys = true }
 
     private val model = GenerativeModel(
-        modelName = "gemini-1.5-flash",
+        modelName = "gemini-flash-latest",
         apiKey = BuildConfig.GEMINI_API_KEY,
-        // CORRECCIÓN: Envolvemos el String en un objeto Content
         systemInstruction = content { text(SYSTEM_PROMPT) }
     )
 
     override suspend fun extractTransaction(rawText: String): AiTransactionPayload {
-        // CORRECCIÓN: Envolvemos el prompt del usuario también por seguridad y claridad
+        // Obtenemos la fecha real de hoy para que el cálculo mensual del ViewModel funcione
+        val today = LocalDate.now().toString()
+
+        val userPrompt = """
+            Contexto: Hoy es $today.
+            Entrada de usuario: "$rawText"
+        """.trimIndent()
+
         val response = model.generateContent(
             content {
-                text(rawText)
+                text(userPrompt)
             }
         )
 
-        val payload = response.text ?: error("Empty response")
-        return json.decodeFromString(AiTransactionPayload.serializer(), payload)
+        val rawPayload = response.text ?: error("Empty response")
+
+        // Limpieza de Markdown para evitar errores de parseo JSON
+        val cleanJson = rawPayload
+            .replace("```json", "")
+            .replace("```", "")
+            .trim()
+
+        return json.decodeFromString(AiTransactionPayload.serializer(), cleanJson)
     }
 
     private companion object {
         const val SYSTEM_PROMPT = """
-        Eres un asistente contable. Extrae la información del texto y devuélvela en formato JSON estricto con estas llaves:
-        - "concept": descripción breve.
-        - "amount": número (monto).
-        - "currency": código ISO (ej: EUR, USD).
-        - "category": categoría del gasto.
-        - "expense_date": fecha en formato ISO-8601.
+        Eres un asistente contable experto en extracción de datos.
+        Tu tarea es convertir texto en un objeto JSON estricto.
         
-        Si el usuario corrige un dato, usa el último mencionado. Si falta la fecha, usa la de hoy.
+        REGLAS DE FECHA:
+        1. Usa la fecha proporcionada en el "Contexto" como fecha de hoy.
+        2. Si el usuario no menciona una fecha específica (ej: "ayer", "el lunes"), usa SIEMPRE la fecha de hoy.
+        
+        FORMATO JSON REQUERIDO:
+        {
+          "concept": "Descripción breve",
+          "amount": 0.0,
+          "currency": "EUR",
+          "category": "Categoría adecuada",
+          "expense_date": "YYYY-MM-DD"
+        }
+
+        IMPORTANTE: Responde ÚNICAMENTE con el JSON. No añadas texto extra ni formato Markdown.
     """
     }
 }

@@ -9,14 +9,17 @@
             android:action="android.intent.action.VIEW"
             android:targetClass="com.sgagestudio.dicho.MainActivity"
             android:targetPackage="com.sgagestudio.dicho" />
+
         <capability android:name="actions.intent.CREATE_MONEY_TRANSFER">
-            <intent>
-                <action android:name="android.intent.action.VIEW" />
+            <intent
+                android:action="android.intent.action.VIEW"
+                android:targetClass="com.sgagestudio.dicho.MainActivity"
+                android:targetPackage="com.sgagestudio.dicho">
+                <data android:scheme="dicho" android:host="record" />
                 <parameter
                     android:name="moneyTransfer.note"
                     android:key="rawText" />
             </intent>
-            <shortcut android:shortcutId="record_expense_voice" />
         </capability>
     </shortcut>
 </shortcuts>
