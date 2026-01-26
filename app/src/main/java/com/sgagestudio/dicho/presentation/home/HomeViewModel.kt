@@ -45,10 +45,16 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun onVoiceInput(rawText: String) {
+        if (rawText.isBlank()) return // Evita procesar silencios
+
         viewModelScope.launch {
+            _snackbar.value = "Analizando tu gasto..." // Feedback inmediato
             aiProcessorRepository.process(rawText)
                 .onFailure { error ->
-                    _snackbar.value = "Error al procesar: ${error.message}"
+                    _snackbar.value = "Error al procesar: ${error.localizedMessage}"
+                }
+                .onSuccess {
+                    _snackbar.value = "¡Gasto registrado con éxito!"
                 }
         }
     }

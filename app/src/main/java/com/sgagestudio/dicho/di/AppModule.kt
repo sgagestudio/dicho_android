@@ -2,7 +2,7 @@ package com.sgagestudio.dicho.di
 
 import android.content.Context
 import androidx.room.Room
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.sgagestudio.dicho.data.export.CsvExporterImpl
 import com.sgagestudio.dicho.data.local.LocalAiProcessor
 import com.sgagestudio.dicho.data.local.LocalAiProcessorImpl
@@ -54,10 +54,14 @@ object AppModule {
         val client = OkHttpClient.Builder()
             .addInterceptor(logger)
             .build()
+
+        val contentType = "application/json".toMediaType()
+
         return Retrofit.Builder()
             .baseUrl("https://example.com/")
             .client(client)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            // La clave es invocar asConverterFactory sobre el objeto json:
+            .addConverterFactory(json.asConverterFactory(contentType))
             .build()
     }
 
