@@ -1,24 +1,26 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
 
+// Lógica para la API KEY
 val geminiApiKey: String? = System.getenv("GEMINI_API_KEY")
     ?: rootProject.file("local.properties")
         .takeIf { it.exists() }
         ?.inputStream()
         ?.use { stream ->
-            java.util.Properties().apply { load(stream) }.getProperty("GEMINI_API_KEY")
+            Properties().apply { load(stream) }.getProperty("GEMINI_API_KEY")
         }
 
 android {
     namespace = "com.sgagestudio.dicho"
-    compileSdk {
-        version = release(35)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.sgagestudio.dicho"
@@ -28,6 +30,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         buildConfigField(
             "String",
             "GEMINI_API_KEY",
@@ -35,6 +38,7 @@ android {
         )
     }
 
+    // ... (el resto del archivo se mantiene igual que antes)
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -44,10 +48,16 @@ android {
             )
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -55,6 +65,7 @@ android {
 }
 
 dependencies {
+    // (Tus dependencias se mantienen igual)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -69,17 +80,17 @@ dependencies {
     implementation(libs.dagger.hilt.android)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.work)
+    ksp(libs.dagger.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.generative.ai)
-    ksp(libs.androidx.room.compiler)
-    ksp(libs.dagger.hilt.compiler)
-    ksp(libs.androidx.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
