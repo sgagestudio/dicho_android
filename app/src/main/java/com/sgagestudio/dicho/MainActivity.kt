@@ -1,9 +1,11 @@
 package com.sgagestudio.dicho
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -15,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.sgagestudio.dicho.presentation.home.HomeScreen
 import com.sgagestudio.dicho.presentation.home.HomeViewModel
 import com.sgagestudio.dicho.presentation.manual.ManualEntryScreen
@@ -25,13 +26,28 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val homeViewModel: HomeViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             DichoTheme {
-                DichoApp()
+                DichoApp(viewModel = homeViewModel)
             }
+        }
+        handleAssistantIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleAssistantIntent(intent)
+    }
+
+    private fun handleAssistantIntent(intent: Intent?) {
+        val rawText = intent?.let { extractVoiceText(it) }
+        if (!rawText.isNullOrBlank()) {
+            homeViewModel.onVoiceInput(rawText)
         }
     }
 }
@@ -43,9 +59,8 @@ private enum class AppScreen(val label: String) {
 }
 
 @Composable
-private fun DichoApp() {
+private fun DichoApp(viewModel: HomeViewModel) {
     var currentScreen by remember { mutableStateOf(AppScreen.Home) }
-    val viewModel: HomeViewModel = hiltViewModel()
 
     Scaffold(
         bottomBar = {
@@ -67,4 +82,18 @@ private fun DichoApp() {
             AppScreen.Settings -> SettingsScreen(viewModel = viewModel, paddingValues = paddingValues)
         }
     }
+}
+
+private fun extractVoiceText(intent: Intent): String? {
+    val candidates = listOfNotNull(
+        intent.getStringExtra(Intent.EXTRA_TEXT),
+        intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT),
+        intent.getStringExtra("rawText"),
+        intent.getStringExtra("query"),
+        intent.getStringExtra("assistant_query"),
+    )
+    if (candidates.isNotEmpty()) {
+        return candidates.firstOrNull { it.isNotBlank() }
+    }
+    return intent.extras?.getCharSequence(Intent.EXTRA_TEXT)?.toString()
 }

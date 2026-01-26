@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">dicho</string>
+    <string name="assistant_shortcut_short">Registrar gasto</string>
+    <string name="assistant_shortcut_long">Registrar un gasto con la voz</string>
 </resources>
