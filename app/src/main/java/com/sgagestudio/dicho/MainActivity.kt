@@ -45,10 +45,36 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleAssistantIntent(intent: Intent?) {
+        val data = intent?.data
+
+        // 1. Caso: El usuario pulsó el acceso directo "Registrar Gasto" (abre el overlay)
+        if (data?.scheme == "dicho" && data.host == "open_mic") {
+            homeViewModel.startListening()
+            return
+        }
+
+        // 2. Caso: Google Assistant envió texto directamente para procesar
         val rawText = intent?.let { extractVoiceText(it) }
         if (!rawText.isNullOrBlank()) {
             homeViewModel.onVoiceInput(rawText)
         }
+    }
+
+    private fun extractVoiceText(intent: Intent): String? {
+        // Buscamos en todas las posibles llaves de entrada de texto
+        val candidates = listOfNotNull(
+            intent.getStringExtra("text_body"),  // Nuestra clave en shortcuts.xml
+            intent.getStringExtra("query"),      // Estándar de Google Assistant
+            intent.getStringExtra("rawText"),    // Tu clave anterior
+            intent.getStringExtra(Intent.EXTRA_TEXT),
+            intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT)
+        )
+
+        if (candidates.isNotEmpty()) {
+            return candidates.firstOrNull { it.isNotBlank() }
+        }
+
+        return intent.extras?.getCharSequence(Intent.EXTRA_TEXT)?.toString()
     }
 }
 
@@ -82,18 +108,4 @@ private fun DichoApp(viewModel: HomeViewModel) {
             AppScreen.Settings -> SettingsScreen(viewModel = viewModel, paddingValues = paddingValues)
         }
     }
-}
-
-private fun extractVoiceText(intent: Intent): String? {
-    val candidates = listOfNotNull(
-        intent.getStringExtra(Intent.EXTRA_TEXT),
-        intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT),
-        intent.getStringExtra("rawText"),
-        intent.getStringExtra("query"),
-        intent.getStringExtra("assistant_query"),
-    )
-    if (candidates.isNotEmpty()) {
-        return candidates.firstOrNull { it.isNotBlank() }
-    }
-    return intent.extras?.getCharSequence(Intent.EXTRA_TEXT)?.toString()
 }
