@@ -29,6 +29,8 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
     private val _snackbar = MutableStateFlow<String?>(null)
     val snackbar: StateFlow<String?> = _snackbar
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing
 
     val uiState: StateFlow<HomeUiState> = combine(
         transactionRepository.observeTransactions(),
@@ -48,14 +50,19 @@ class HomeViewModel @Inject constructor(
         if (rawText.isBlank()) return // Evita procesar silencios
 
         viewModelScope.launch {
+            _isProcessing.value = true
             _snackbar.value = "Analizando tu gasto..." // Feedback inmediato
-            aiProcessorRepository.process(rawText)
-                .onFailure { error ->
-                    _snackbar.value = "Error al procesar: ${error.localizedMessage}"
-                }
-                .onSuccess {
-                    _snackbar.value = "¡Gasto registrado con éxito!"
-                }
+            try {
+                aiProcessorRepository.process(rawText)
+                    .onFailure { error ->
+                        _snackbar.value = "Error al procesar: ${error.localizedMessage}"
+                    }
+                    .onSuccess {
+                        _snackbar.value = "¡Gasto registrado con éxito!"
+                    }
+            } finally {
+                _isProcessing.value = false
+            }
         }
     }
 
@@ -93,6 +100,20 @@ class HomeViewModel @Inject constructor(
                 .onFailure { error ->
                     _snackbar.value = "Error al exportar: ${error.message}"
                 }
+        }
+    }
+
+    fun updateTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            transactionRepository.updateTransaction(transaction)
+            _snackbar.value = "Registro actualizado"
+        }
+    }
+
+    fun deleteTransaction(id: Long) {
+        viewModelScope.launch {
+            transactionRepository.deleteTransaction(id)
+            _snackbar.value = "Registro eliminado"
         }
     }
 
