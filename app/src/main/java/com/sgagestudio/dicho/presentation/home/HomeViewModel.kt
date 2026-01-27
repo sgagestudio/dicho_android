@@ -71,10 +71,8 @@ class HomeViewModel @Inject constructor(
             return
         }
 
+        stopListening()
         viewModelScope.launch {
-            // Cerramos el overlay inmediatamente para dar fluidez
-            stopListening()
-
             _isProcessing.value = true
             _snackbar.value = "Analizando tu gasto..."
             try {
