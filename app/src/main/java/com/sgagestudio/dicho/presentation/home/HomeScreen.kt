@@ -28,8 +28,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -76,8 +74,6 @@ fun HomeScreen(
     paddingValues: PaddingValues = PaddingValues(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val snackbar by viewModel.snackbar.collectAsState()
     var isListening by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -106,13 +102,6 @@ fun HomeScreen(
             viewModel.stopListening()
         }
     )
-
-    LaunchedEffect(snackbar) {
-        snackbar?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeSnackbar()
-        }
-    }
 
     LaunchedEffect(uiState.showVoiceOverlay) {
         if (uiState.showVoiceOverlay) {
@@ -157,11 +146,6 @@ fun HomeScreen(
         ) {
             Icon(imageVector = Icons.Filled.Mic, contentDescription = "Hablar")
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
 
         VoiceOverlay(isListening = uiState.showVoiceOverlay)
     }

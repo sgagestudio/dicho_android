@@ -6,17 +6,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import com.sgagestudio.dicho.presentation.home.HomeScreen
 import com.sgagestudio.dicho.presentation.home.HomeViewModel
 import com.sgagestudio.dicho.presentation.manual.ManualEntryScreen
@@ -87,8 +89,18 @@ private enum class AppScreen(val label: String) {
 @Composable
 private fun DichoApp(viewModel: HomeViewModel) {
     var currentScreen by remember { mutableStateOf(AppScreen.Home) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbar by viewModel.snackbar.collectAsState()
+
+    LaunchedEffect(snackbar) {
+        snackbar?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeSnackbar()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
             NavigationBar {
                 AppScreen.entries.forEach { screen ->
