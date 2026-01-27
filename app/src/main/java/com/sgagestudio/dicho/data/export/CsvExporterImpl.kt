@@ -25,6 +25,11 @@ class CsvExporterImpl @Inject constructor() : CsvExporter {
                 ).joinToString(separator = ",")
             )
         }
-        return builder.toString().toByteArray(Charsets.UTF_8)
+        val csvString = builder.toString()
+        return BOM_UTF8 + csvString.toByteArray(Charsets.UTF_8)
+    }
+
+    private companion object {
+        val BOM_UTF8 = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
     }
 }
