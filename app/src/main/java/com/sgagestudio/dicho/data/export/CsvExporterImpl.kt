@@ -11,7 +11,7 @@ import javax.inject.Inject
 class CsvExporterImpl @Inject constructor() : CsvExporter {
     override suspend fun export(transactions: List<Transaction>, outputDir: File): File {
         val formatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
-        val file = File(outputDir, "dicho_export_${System.currentTimeMillis()}.csv")
+        val file = File(outputDir, "export_dicho_fecha_hora_${System.currentTimeMillis()}.csv")
         file.bufferedWriter().use { writer ->
             writer.appendLine("Concepto,Cantidad,Moneda,Fecha de Gasto,Fecha de Registro")
             transactions.forEach { transaction ->
