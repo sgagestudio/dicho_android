@@ -89,16 +89,21 @@ fun HomeScreen(
     ) { granted ->
         if (granted) {
             isListening = true
+        } else {
+            isListening = false
+            viewModel.stopListening()
         }
     }
 
     val voiceInputManager = rememberVoiceInputManager(
         onResult = { text ->
             isListening = false
+            viewModel.stopListening()
             viewModel.onVoiceInput(text)
         },
         onError = {
             isListening = false
+            viewModel.stopListening()
         }
     )
 
@@ -106,6 +111,22 @@ fun HomeScreen(
         snackbar?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.consumeSnackbar()
+        }
+    }
+
+    LaunchedEffect(uiState.showVoiceOverlay) {
+        if (uiState.showVoiceOverlay) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                isListening = true
+            } else {
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        } else {
+            isListening = false
         }
     }
 
@@ -128,15 +149,7 @@ fun HomeScreen(
         FloatingActionButton(
             onClick = {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                val hasPermission = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.RECORD_AUDIO,
-                ) == PackageManager.PERMISSION_GRANTED
-                if (hasPermission) {
-                    isListening = true
-                } else {
-                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
+                viewModel.startListening()
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -150,7 +163,7 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
-        VoiceOverlay(isListening = isListening)
+        VoiceOverlay(isListening = uiState.showVoiceOverlay)
     }
 
     editTransaction?.let { transaction ->
