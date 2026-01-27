@@ -7,6 +7,26 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 
+/**
+ * Ejemplo de uso completo (CSV con tildes + BOM UTF-8):
+ * ```
+ * val csvString = buildString {
+ *     appendLine("Nombre,Ciudad,Nota")
+ *     appendLine("José,Málaga,acción")
+ *     appendLine("niño,Sevilla,próximo")
+ * }
+ * val bomUtf8 = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+ * val bytes = bomUtf8 + csvString.toByteArray(Charsets.UTF_8)
+ *
+ * val uri = saveBytesToPublicDocuments(
+ *     context = context,
+ *     fileName = "ejemplo.csv",
+ *     mimeType = "text/csv",
+ *     bytes = bytes,
+ * )
+ * ```
+ */
+
 fun saveBytesToPublicDocuments(
     context: Context,
     fileName: String,

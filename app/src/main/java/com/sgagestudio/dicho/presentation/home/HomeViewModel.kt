@@ -143,7 +143,7 @@ class HomeViewModel @Inject constructor(
                     return@onSuccess
                 }
                 val location = describeSavedLocation(context, uri)
-                Log.i("HomeViewModel", "CSV guardado en $location")
+                Log.i("HomeViewModel", "Guardado CSV en: $uri")
                 _snackbar.value = "CSV exportado en $location"
             }.onFailure { error ->
                 _snackbar.value = "Error al exportar: ${error.message}"
