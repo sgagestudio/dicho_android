@@ -1,7 +1,11 @@
 package com.sgagestudio.dicho.presentation.home
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sgagestudio.dicho.data.export.describeSavedLocation
+import com.sgagestudio.dicho.data.export.saveBytesToPublicDocuments
 import com.sgagestudio.dicho.domain.model.ProcessingSource
 import com.sgagestudio.dicho.domain.model.Transaction
 import com.sgagestudio.dicho.domain.model.TransactionStatus
@@ -15,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -122,12 +125,29 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun exportCsv(outputDir: File) {
+    fun exportCsv(context: Context) {
         viewModelScope.launch {
             val transactions = uiState.value.transactions
-            runCatching { csvExporter.export(transactions, outputDir) }
-                .onSuccess { file -> _snackbar.value = "CSV exportado en ${file.absolutePath}" }
-                .onFailure { error -> _snackbar.value = "Error al exportar: ${error.message}" }
+            runCatching {
+                val bytes = csvExporter.export(transactions)
+                val fileName = "export_dicho_fecha_hora_${System.currentTimeMillis()}.csv"
+                saveBytesToPublicDocuments(
+                    context = context,
+                    fileName = fileName,
+                    mimeType = "text/csv",
+                    bytes = bytes,
+                )
+            }.onSuccess { uri ->
+                if (uri == null) {
+                    _snackbar.value = "No se pudo exportar el CSV"
+                    return@onSuccess
+                }
+                val location = describeSavedLocation(context, uri)
+                Log.i("HomeViewModel", "CSV guardado en $location")
+                _snackbar.value = "CSV exportado en $location"
+            }.onFailure { error ->
+                _snackbar.value = "Error al exportar: ${error.message}"
+            }
         }
     }
 

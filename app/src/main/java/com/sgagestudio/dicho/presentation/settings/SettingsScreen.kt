@@ -50,8 +50,7 @@ fun SettingsScreen(
         )
         Button(
             onClick = {
-                val outputDir = context.getExternalFilesDir(null) ?: context.cacheDir
-                viewModel.exportCsv(outputDir)
+                viewModel.exportCsv(context)
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
