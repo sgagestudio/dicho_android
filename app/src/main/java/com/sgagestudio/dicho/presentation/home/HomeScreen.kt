@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -72,6 +73,7 @@ import androidx.compose.ui.text.input.KeyboardType
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     paddingValues: PaddingValues = PaddingValues(),
+    onOpenCamera: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isListening by remember { mutableStateOf(false) }
@@ -145,6 +147,15 @@ fun HomeScreen(
                 .padding(24.dp),
         ) {
             Icon(imageVector = Icons.Filled.Mic, contentDescription = "Hablar")
+        }
+
+        FloatingActionButton(
+            onClick = onOpenCamera,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+        ) {
+            Icon(imageVector = Icons.Filled.PhotoCamera, contentDescription = "Cámara")
         }
 
         VoiceOverlay(isListening = uiState.showVoiceOverlay)
