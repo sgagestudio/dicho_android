@@ -51,6 +51,11 @@ class VoiceInputManager(
         speechRecognizer.startListening(intent)
     }
 
+    fun stopListening() {
+        speechRecognizer.stopListening()
+        speechRecognizer.cancel()
+    }
+
     fun destroy() {
         speechRecognizer.destroy()
     }

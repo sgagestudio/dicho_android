@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -75,6 +76,8 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isListening by remember { mutableStateOf(false) }
+    var pendingVoiceText by remember { mutableStateOf("") }
+    var restartListening by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -93,18 +96,17 @@ fun HomeScreen(
 
     val voiceInputManager = rememberVoiceInputManager(
         onResult = { text ->
-            isListening = false
-            viewModel.stopListening()
-            viewModel.onVoiceInput(text)
+            pendingVoiceText = text
+            restartListening = true
         },
         onError = {
-            isListening = false
-            viewModel.stopListening()
+            restartListening = true
         }
     )
 
     LaunchedEffect(uiState.showVoiceOverlay) {
         if (uiState.showVoiceOverlay) {
+            pendingVoiceText = ""
             val hasPermission = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.RECORD_AUDIO,
@@ -122,6 +124,15 @@ fun HomeScreen(
     LaunchedEffect(isListening) {
         if (isListening) {
             voiceInputManager.startListening()
+        } else {
+            voiceInputManager.stopListening()
+        }
+    }
+
+    LaunchedEffect(restartListening) {
+        if (restartListening && isListening) {
+            voiceInputManager.startListening()
+            restartListening = false
         }
     }
 
@@ -147,7 +158,15 @@ fun HomeScreen(
             Icon(imageVector = Icons.Filled.Mic, contentDescription = "Hablar")
         }
 
-        VoiceOverlay(isListening = uiState.showVoiceOverlay)
+        VoiceOverlay(
+            isListening = uiState.showVoiceOverlay,
+            onClose = {
+                voiceInputManager.stopListening()
+                isListening = false
+                viewModel.stopListening()
+                viewModel.onVoiceInput(pendingVoiceText)
+            },
+        )
     }
 
     editTransaction?.let { transaction ->
@@ -277,7 +296,10 @@ private fun TransactionRow(
 }
 
 @Composable
-private fun VoiceOverlay(isListening: Boolean) {
+private fun VoiceOverlay(
+    isListening: Boolean,
+    onClose: () -> Unit,
+) {
     if (!isListening) return
     val statusText = "Escuchando..."
     val primary = MaterialTheme.colorScheme.primary
@@ -321,6 +343,20 @@ private fun VoiceOverlay(isListening: Boolean) {
             .background(Color(0f, 0f, 0f, 0.7f)),
         contentAlignment = Alignment.Center,
     ) {
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(28.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Cerrar micrófono",
+                tint = Color(0xFFD32F2F),
+                modifier = Modifier.size(16.dp),
+            )
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier.size(140.dp),

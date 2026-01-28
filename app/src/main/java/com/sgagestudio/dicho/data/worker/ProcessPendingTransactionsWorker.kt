@@ -28,15 +28,34 @@ class ProcessPendingTransactionsWorker @AssistedInject constructor(
         pending.forEach { transaction ->
             val result = aiProcessorRepository.process(transaction.rawText)
             result.fold(
-                onSuccess = { (processed, source) ->
+                onSuccess = { (processedList, source) ->
+                    val primary = processedList.firstOrNull()
+                    if (primary == null) {
+                        transactionRepository.upsertTransaction(
+                            transaction.copy(
+                                status = TransactionStatus.FAILED,
+                                processingSource = ProcessingSource.CLOUD_AI,
+                            )
+                        )
+                        return@fold
+                    }
                     transactionRepository.upsertTransaction(
-                        processed.copy(
+                        primary.copy(
                             id = transaction.id,
                             recordDate = transaction.recordDate,
                             status = TransactionStatus.COMPLETED,
                             processingSource = source,
                         )
                     )
+                    processedList.drop(1).forEach { extra ->
+                        transactionRepository.insertTransaction(
+                            extra.copy(
+                                id = 0L,
+                                status = TransactionStatus.COMPLETED,
+                                processingSource = source,
+                            )
+                        )
+                    }
                 },
                 onFailure = {
                     transactionRepository.upsertTransaction(

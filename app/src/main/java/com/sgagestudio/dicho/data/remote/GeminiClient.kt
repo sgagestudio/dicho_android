@@ -1,5 +1,5 @@
 package com.sgagestudio.dicho.data.remote
 
 interface GeminiClient {
-    suspend fun extractTransaction(rawText: String): AiTransactionPayload
+    suspend fun extractTransaction(rawText: String): List<AiTransactionPayload>
 }

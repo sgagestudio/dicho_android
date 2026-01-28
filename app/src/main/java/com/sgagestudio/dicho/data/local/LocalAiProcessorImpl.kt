@@ -6,7 +6,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 class LocalAiProcessorImpl @Inject constructor() : LocalAiProcessor {
-    override suspend fun extractTransaction(rawText: String): AiTransactionPayload {
+    override suspend fun extractTransaction(rawText: String): List<AiTransactionPayload> {
         val amountRegex = "(-?\\d+(?:[.,]\\d+)?)".toRegex()
         val amountMatch = amountRegex.findAll(rawText).lastOrNull()?.value
         val amount = amountMatch?.replace(",", ".")?.toDoubleOrNull() ?: 0.0
@@ -24,12 +24,14 @@ class LocalAiProcessorImpl @Inject constructor() : LocalAiProcessor {
             else -> "Otros"
         }
         val today = LocalDate.now(ZoneId.systemDefault()).toString()
-        return AiTransactionPayload(
+        return listOf(
+            AiTransactionPayload(
             concept = rawText.take(48),
             amount = amount,
             currency = currency,
             category = category,
             expenseDate = today,
+            )
         )
     }
 }
