@@ -8,5 +8,5 @@ interface AIProcessorRepository {
     val localModelAvailable: StateFlow<Boolean>
     val localModelSupported: StateFlow<Boolean>
     suspend fun refreshCapabilities()
-    suspend fun process(rawText: String): Result<Pair<Transaction, ProcessingSource>>
+    suspend fun process(rawText: String): Result<Pair<List<Transaction>, ProcessingSource>>
 }

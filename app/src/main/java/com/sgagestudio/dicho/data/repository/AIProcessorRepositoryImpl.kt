@@ -38,7 +38,7 @@ class AIProcessorRepositoryImpl @Inject constructor(
         _localModelAvailable.value = supported && localAICapabilityChecker.isLocalModelDownloaded()
     }
 
-    override suspend fun process(rawText: String): Result<Pair<Transaction, ProcessingSource>> {
+    override suspend fun process(rawText: String): Result<Pair<List<Transaction>, ProcessingSource>> {
         refreshCapabilities()
         val hasInternet = networkMonitor.isConnected()
         val recordDate = Instant.now().toEpochMilli()
@@ -46,26 +46,38 @@ class AIProcessorRepositoryImpl @Inject constructor(
         return runCatching {
             when {
                 localModelAvailable.value -> {
-                    val payload = localAiProcessor.extractTransaction(rawText)
-                    val transaction = payload.toTransaction(
-                        rawText = rawText,
-                        recordDate = recordDate,
-                        status = TransactionStatus.COMPLETED,
-                        source = ProcessingSource.LOCAL_AI,
-                    )
-                    val id = transactionRepository.insertTransaction(transaction)
-                    transaction.copy(id = id) to ProcessingSource.LOCAL_AI
+                    val payloads = localAiProcessor.extractTransaction(rawText)
+                    val transactions = payloads.map { payload ->
+                        payload.toTransaction(
+                            rawText = rawText,
+                            recordDate = recordDate,
+                            status = TransactionStatus.COMPLETED,
+                            source = ProcessingSource.LOCAL_AI,
+                        )
+                    }
+                    if (transactions.isEmpty()) error("Respuesta vacía del modelo local.")
+                    val saved = transactions.map { transaction ->
+                        val id = transactionRepository.insertTransaction(transaction)
+                        transaction.copy(id = id)
+                    }
+                    saved to ProcessingSource.LOCAL_AI
                 }
                 !localModelAvailable.value && hasInternet -> {
-                    val payload = geminiClient.extractTransaction(rawText)
-                    val transaction = payload.toTransaction(
-                        rawText = rawText,
-                        recordDate = recordDate,
-                        status = TransactionStatus.COMPLETED,
-                        source = ProcessingSource.CLOUD_AI,
-                    )
-                    val id = transactionRepository.insertTransaction(transaction)
-                    transaction.copy(id = id) to ProcessingSource.CLOUD_AI
+                    val payloads = geminiClient.extractTransaction(rawText)
+                    val transactions = payloads.map { payload ->
+                        payload.toTransaction(
+                            rawText = rawText,
+                            recordDate = recordDate,
+                            status = TransactionStatus.COMPLETED,
+                            source = ProcessingSource.CLOUD_AI,
+                        )
+                    }
+                    if (transactions.isEmpty()) error("Respuesta vacía del modelo remoto.")
+                    val saved = transactions.map { transaction ->
+                        val id = transactionRepository.insertTransaction(transaction)
+                        transaction.copy(id = id)
+                    }
+                    saved to ProcessingSource.CLOUD_AI
                 }
                 else -> {
                     val transaction = Transaction(
@@ -82,7 +94,7 @@ class AIProcessorRepositoryImpl @Inject constructor(
                     )
                     val id = transactionRepository.insertTransaction(transaction)
                     workScheduler.enqueuePendingProcessing()
-                    transaction.copy(id = id) to ProcessingSource.CLOUD_AI
+                    listOf(transaction.copy(id = id)) to ProcessingSource.CLOUD_AI
                 }
             }
         }

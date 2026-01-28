@@ -4,6 +4,7 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.sgagestudio.dicho.BuildConfig
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -16,7 +17,7 @@ class GeminiClientImpl @Inject constructor() : GeminiClient {
         systemInstruction = content { text(SYSTEM_PROMPT) }
     )
 
-    override suspend fun extractTransaction(rawText: String): AiTransactionPayload {
+    override suspend fun extractTransaction(rawText: String): List<AiTransactionPayload> {
         // Obtenemos la fecha real de hoy para que el cálculo mensual del ViewModel funcione
         val today = LocalDate.now().toString()
 
@@ -39,7 +40,10 @@ class GeminiClientImpl @Inject constructor() : GeminiClient {
             .replace("```", "")
             .trim()
 
-        return json.decodeFromString(AiTransactionPayload.serializer(), cleanJson)
+        return json.decodeFromString(
+            ListSerializer(AiTransactionPayload.serializer()),
+            cleanJson
+        )
     }
 
     private companion object {
@@ -52,15 +56,17 @@ class GeminiClientImpl @Inject constructor() : GeminiClient {
         2. Si el usuario no menciona una fecha específica (ej: "ayer", "el lunes"), usa SIEMPRE la fecha de hoy.
         
         FORMATO JSON REQUERIDO:
-        {
-          "concept": "Descripción breve",
-          "amount": 0.0,
-          "currency": "EUR",
-          "category": "Categoría adecuada",
-          "expense_date": "YYYY-MM-DD"
-        }
+        [
+          {
+            "concept": "Descripción breve",
+            "amount": 0.0,
+            "currency": "EUR",
+            "category": "Categoría adecuada",
+            "expense_date": "YYYY-MM-DD"
+          }
+        ]
 
-        IMPORTANTE: Responde ÚNICAMENTE con el JSON. No añadas texto extra ni formato Markdown.
+        IMPORTANTE: Responde ÚNICAMENTE con el JSON en forma de lista. No añadas texto extra ni formato Markdown.
     """
     }
 }
