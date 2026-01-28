@@ -9,9 +9,11 @@ import com.sgagestudio.dicho.data.export.saveBytesToPublicDocuments
 import com.sgagestudio.dicho.domain.model.ProcessingSource
 import com.sgagestudio.dicho.domain.model.Transaction
 import com.sgagestudio.dicho.domain.model.TransactionStatus
+import com.sgagestudio.dicho.data.worker.ReceiptProcessingScheduler
 import com.sgagestudio.dicho.domain.repository.AIProcessorRepository
 import com.sgagestudio.dicho.domain.repository.CsvExporter
 import com.sgagestudio.dicho.domain.repository.TransactionRepository
+import com.sgagestudio.dicho.domain.usecase.ProcessTextInputUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,6 +31,8 @@ class HomeViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val aiProcessorRepository: AIProcessorRepository,
     private val csvExporter: CsvExporter,
+    private val processTextInputUseCase: ProcessTextInputUseCase,
+    private val receiptProcessingScheduler: ReceiptProcessingScheduler,
 ) : ViewModel() {
 
     private val _snackbar = MutableStateFlow<String?>(null)
@@ -79,7 +83,7 @@ class HomeViewModel @Inject constructor(
             _isProcessing.value = true
             _snackbar.value = "Analizando tu gasto..."
             try {
-                aiProcessorRepository.process(rawText)
+                processTextInputUseCase.processTextInput(rawText)
                     .onFailure { error ->
                         _snackbar.value = "Error al procesar: ${error.localizedMessage}"
                     }
@@ -109,6 +113,11 @@ class HomeViewModel @Inject constructor(
             )
             transactionRepository.insertTransaction(transaction)
         }
+    }
+
+    fun enqueueReceiptProcessing(imageUriString: String) {
+        receiptProcessingScheduler.enqueue(imageUriString)
+        _snackbar.value = "Procesando ticket..."
     }
 
     fun updateTransaction(transaction: Transaction) {
