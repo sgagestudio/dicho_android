@@ -2,21 +2,28 @@ package com.sgagestudio.dicho.presentation.home
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Close
@@ -50,8 +57,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.sgagestudio.dicho.data.camera.ReceiptImageStore
 import com.sgagestudio.dicho.domain.model.Transaction
 import com.sgagestudio.dicho.domain.model.TransactionStatus
+import com.sgagestudio.dicho.presentation.camera.CaptureScreen
+import com.sgagestudio.dicho.presentation.camera.PreviewScreen
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,11 +72,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 
 @Composable
@@ -80,6 +85,7 @@ fun HomeScreen(
     var restartListening by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
+    var cameraFlowState by remember { mutableStateOf<CameraFlowState>(CameraFlowState.Hidden) }
     var editTransaction by remember { mutableStateOf<Transaction?>(null) }
     var deleteTransaction by remember { mutableStateOf<Transaction?>(null) }
 
@@ -137,36 +143,73 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            MonthlySummary(total = uiState.monthlyTotal)
-            TransactionList(
-                transactions = uiState.transactions,
-                onEdit = { editTransaction = it },
-                onDelete = { deleteTransaction = it },
-            )
-        }
+        when (val state = cameraFlowState) {
+            CameraFlowState.Hidden -> {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    MonthlySummary(total = uiState.monthlyTotal)
+                    TransactionList(
+                        transactions = uiState.transactions,
+                        onEdit = { editTransaction = it },
+                        onDelete = { deleteTransaction = it },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.startListening()
+                            },
+                        ) {
+                            Icon(imageVector = Icons.Filled.Mic, contentDescription = "Hablar")
+                        }
+                        FloatingActionButton(
+                            onClick = {
+                                voiceInputManager.stopListening()
+                                isListening = false
+                                viewModel.stopListening()
+                                cameraFlowState = CameraFlowState.Capture
+                            },
+                        ) {
+                            Icon(imageVector = Icons.Filled.CameraAlt, contentDescription = "Capturar ticket")
+                        }
+                    }
+                }
 
-        FloatingActionButton(
-            onClick = {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                viewModel.startListening()
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(24.dp),
-        ) {
-            Icon(imageVector = Icons.Filled.Mic, contentDescription = "Hablar")
+                VoiceOverlay(
+                    isListening = uiState.showVoiceOverlay,
+                    onClose = {
+                        voiceInputManager.stopListening()
+                        isListening = false
+                        viewModel.stopListening()
+                        viewModel.onVoiceInput(pendingVoiceText)
+                    },
+                )
+            }
+            CameraFlowState.Capture -> {
+                CaptureScreen(
+                    onClose = { cameraFlowState = CameraFlowState.Hidden },
+                    onPhotoCaptured = { uri -> cameraFlowState = CameraFlowState.Preview(uri) },
+                )
+            }
+            is CameraFlowState.Preview -> {
+                PreviewScreen(
+                    imageUri = state.uri,
+                    onRetake = {
+                        ReceiptImageStore.deleteImageUri(context, state.uri)
+                        cameraFlowState = CameraFlowState.Capture
+                    },
+                    onUse = {
+                        viewModel.enqueueReceiptProcessing(state.uri.toString())
+                        cameraFlowState = CameraFlowState.Capture
+                    },
+                )
+            }
         }
-
-        VoiceOverlay(
-            isListening = uiState.showVoiceOverlay,
-            onClose = {
-                voiceInputManager.stopListening()
-                isListening = false
-                viewModel.stopListening()
-                viewModel.onVoiceInput(pendingVoiceText)
-            },
-        )
     }
 
     editTransaction?.let { transaction ->
@@ -215,6 +258,7 @@ private fun TransactionList(
     transactions: List<Transaction>,
     onEdit: (Transaction) -> Unit,
     onDelete: (Transaction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val formatter = remember {
         DateTimeFormatter.ofPattern("dd MMM")
@@ -222,7 +266,7 @@ private fun TransactionList(
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
     ) {
         items(transactions, key = { it.id }) { transaction ->
             TransactionRow(
@@ -233,6 +277,12 @@ private fun TransactionList(
             )
         }
     }
+}
+
+private sealed interface CameraFlowState {
+    data object Hidden : CameraFlowState
+    data object Capture : CameraFlowState
+    data class Preview(val uri: Uri) : CameraFlowState
 }
 
 @Composable
