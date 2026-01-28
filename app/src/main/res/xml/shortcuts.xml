@@ -28,7 +28,7 @@
     <shortcut
         android:shortcutId="record_expense_quick"
         android:enabled="true"
-        android:icon="@drawable/ic_mic"
+        android:icon="@drawable/ic_microphone"
         android:shortcutShortLabel="@string/assistant_shortcut_short"
         android:shortcutLongLabel="@string/assistant_shortcut_long">
         <intent
@@ -40,3 +40,4 @@
     </shortcut>
 
 </shortcuts>
+
