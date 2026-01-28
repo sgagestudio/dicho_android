@@ -10,14 +10,18 @@ import com.sgagestudio.dicho.data.local.LocalAICapabilityCheckerImpl
 import com.sgagestudio.dicho.data.local.NetworkMonitor
 import com.sgagestudio.dicho.data.local.NetworkMonitorImpl
 import com.sgagestudio.dicho.data.local.db.DichoDatabase
+import com.sgagestudio.dicho.data.local.db.DatabaseMigrations
+import com.sgagestudio.dicho.data.local.db.ReceiptQueueDao
 import com.sgagestudio.dicho.data.local.db.TransactionDao
 import com.sgagestudio.dicho.data.remote.GeminiClient
 import com.sgagestudio.dicho.data.remote.GeminiClientImpl
 import com.sgagestudio.dicho.data.repository.AIProcessorRepositoryImpl
+import com.sgagestudio.dicho.data.repository.ReceiptQueueRepositoryImpl
 import com.sgagestudio.dicho.data.repository.TransactionRepositoryImpl
 import com.sgagestudio.dicho.domain.ai.LocalAICapabilityChecker
 import com.sgagestudio.dicho.domain.repository.AIProcessorRepository
 import com.sgagestudio.dicho.domain.repository.CsvExporter
+import com.sgagestudio.dicho.domain.repository.ReceiptQueueRepository
 import com.sgagestudio.dicho.domain.repository.TransactionRepository
 import dagger.Binds
 import dagger.Module
@@ -39,11 +43,15 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): DichoDatabase {
         return Room.databaseBuilder(context, DichoDatabase::class.java, "dicho.db")
+            .addMigrations(DatabaseMigrations.MIGRATION_1_2)
             .build()
     }
 
     @Provides
     fun provideTransactionDao(database: DichoDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    fun provideReceiptQueueDao(database: DichoDatabase): ReceiptQueueDao = database.receiptQueueDao()
 
     @Provides
     @Singleton
@@ -91,6 +99,11 @@ abstract class AppBindingsModule {
     abstract fun bindTransactionRepository(
         impl: TransactionRepositoryImpl,
     ): TransactionRepository
+
+    @Binds
+    abstract fun bindReceiptQueueRepository(
+        impl: ReceiptQueueRepositoryImpl,
+    ): ReceiptQueueRepository
 
     @Binds
     abstract fun bindAiProcessorRepository(
