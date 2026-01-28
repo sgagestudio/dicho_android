@@ -1,6 +1,7 @@
 package com.sgagestudio.dicho
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,12 +17,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sgagestudio.dicho.presentation.home.HomeScreen
 import com.sgagestudio.dicho.presentation.home.HomeViewModel
 import com.sgagestudio.dicho.presentation.manual.ManualEntryScreen
+import com.sgagestudio.dicho.presentation.receipts.CaptureScreen
+import com.sgagestudio.dicho.presentation.receipts.PreviewScreen
+import com.sgagestudio.dicho.presentation.receipts.QueueScreen
 import com.sgagestudio.dicho.presentation.settings.SettingsScreen
 import com.sgagestudio.dicho.ui.theme.DichoTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -80,15 +88,24 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class AppScreen(val label: String) {
-    Home("Inicio"),
-    Manual("Manual"),
-    Settings("Ajustes"),
+private enum class AppScreen(val route: String, val label: String) {
+    Home("home", "Inicio"),
+    Manual("manual", "Manual"),
+    Settings("settings", "Ajustes"),
+}
+
+private object ReceiptRoutes {
+    const val Capture = "receipt_capture"
+    const val Preview = "receipt_preview"
+    const val Queue = "receipt_queue"
+    const val PreviewArg = "imageUri"
 }
 
 @Composable
 private fun DichoApp(viewModel: HomeViewModel) {
-    var currentScreen by remember { mutableStateOf(AppScreen.Home) }
+    val navController = rememberNavController()
+    val navEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navEntry?.destination?.route
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbar by viewModel.snackbar.collectAsState()
 
@@ -99,25 +116,80 @@ private fun DichoApp(viewModel: HomeViewModel) {
         }
     }
 
+    val bottomRoutes = AppScreen.entries.map { it.route }.toSet()
+    val showBottomBar = currentRoute in bottomRoutes
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
-            NavigationBar {
-                AppScreen.entries.forEach { screen ->
-                    NavigationBarItem(
-                        selected = screen == currentScreen,
-                        onClick = { currentScreen = screen },
-                        label = { Text(text = screen.label) },
-                        icon = {},
-                    )
+            if (showBottomBar) {
+                NavigationBar {
+                    AppScreen.entries.forEach { screen ->
+                        NavigationBarItem(
+                            selected = screen.route == currentRoute,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            label = { Text(text = screen.label) },
+                            icon = {},
+                        )
+                    }
                 }
             }
         },
     ) { paddingValues ->
-        when (currentScreen) {
-            AppScreen.Home -> HomeScreen(viewModel = viewModel, paddingValues = paddingValues)
-            AppScreen.Manual -> ManualEntryScreen(viewModel = viewModel, paddingValues = paddingValues)
-            AppScreen.Settings -> SettingsScreen(viewModel = viewModel, paddingValues = paddingValues)
+        NavHost(
+            navController = navController,
+            startDestination = AppScreen.Home.route,
+        ) {
+            composable(AppScreen.Home.route) {
+                HomeScreen(
+                    viewModel = viewModel,
+                    paddingValues = paddingValues,
+                    onOpenCamera = { navController.navigate(ReceiptRoutes.Capture) },
+                )
+            }
+            composable(AppScreen.Manual.route) {
+                ManualEntryScreen(viewModel = viewModel, paddingValues = paddingValues)
+            }
+            composable(AppScreen.Settings.route) {
+                SettingsScreen(viewModel = viewModel, paddingValues = paddingValues)
+            }
+            composable(ReceiptRoutes.Capture) {
+                CaptureScreen(
+                    onClose = { navController.popBackStack() },
+                    onOpenQueue = { navController.navigate(ReceiptRoutes.Queue) },
+                    onPhotoCaptured = { uri ->
+                        navController.navigate("${ReceiptRoutes.Preview}/${Uri.encode(uri)}")
+                    },
+                )
+            }
+            composable(
+                route = "${ReceiptRoutes.Preview}/{${ReceiptRoutes.PreviewArg}}",
+                arguments = listOf(navArgument(ReceiptRoutes.PreviewArg) { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val uri = backStackEntry.arguments?.getString(ReceiptRoutes.PreviewArg).orEmpty()
+                val viewModel = androidx.hilt.navigation.compose.hiltViewModel<com.sgagestudio.dicho.presentation.receipts.ReceiptCaptureViewModel>()
+                PreviewScreen(
+                    imageUri = uri,
+                    onRetry = { navController.popBackStack() },
+                    onUse = {
+                        viewModel.confirmImage(it)
+                        navController.popBackStack(ReceiptRoutes.Capture, inclusive = false)
+                    },
+                )
+            }
+            composable(ReceiptRoutes.Queue) {
+                QueueScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
     }
 }
