@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OverwritingInputMerger
 import androidx.work.WorkManager
+import androidx.work.setInputMerger
 import androidx.work.workDataOf
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
